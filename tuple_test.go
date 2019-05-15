@@ -1,6 +1,6 @@
 // +build all integration
 
-package gocql
+package gocqlproxy
 
 import (
 	"reflect"

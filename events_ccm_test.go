@@ -1,13 +1,13 @@
 // +build ccm, ignore
 
-package gocql
+package gocqlproxy
 
 import (
 	"log"
 	"testing"
 	"time"
 
-	"github.com/gocql/gocql/internal/ccm"
+	"github.com/operasoftware/gocqlproxy/internal/ccm"
 )
 
 func TestEventDiscovery(t *testing.T) {

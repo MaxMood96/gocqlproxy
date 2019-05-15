@@ -1,4 +1,4 @@
-package gocql
+package gocqlproxy
 
 var scyllaShardOfTests = []struct {
 	token int64

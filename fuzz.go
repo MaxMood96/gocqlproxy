@@ -1,6 +1,6 @@
 // +build gofuzz
 
-package gocql
+package gocqlproxy
 
 import "bytes"
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gocql
+package gocqlproxy
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gocql/gocql/internal/murmur"
+	"github.com/operasoftware/gocqlproxy/internal/murmur"
 )
 
 // a token partitioner

@@ -1,7 +1,7 @@
-package gocql
+package gocqlproxy
 
 import (
-	"github.com/gocql/gocql/internal/lru"
+	"github.com/operasoftware/gocqlproxy/internal/lru"
 	"sync"
 )
 

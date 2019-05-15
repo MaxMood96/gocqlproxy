@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 // +build all unit
 
-package gocql
+package gocqlproxy
 
 import (
 	"bufio"
@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gocql/gocql/internal/streams"
+	"github.com/operasoftware/gocqlproxy/internal/streams"
 )
 
 const (

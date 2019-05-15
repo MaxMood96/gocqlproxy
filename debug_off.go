@@ -1,5 +1,5 @@
 // +build !gocql_debug
 
-package gocql
+package gocqlproxy
 
 const gocqlDebug = false

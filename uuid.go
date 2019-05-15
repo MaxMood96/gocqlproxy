@@ -6,7 +6,7 @@
 // identifiers, a standardized format in the form of a 128 bit number.
 //
 // http://tools.ietf.org/html/rfc4122
-package gocql
+package gocqlproxy
 
 import (
 	"crypto/rand"

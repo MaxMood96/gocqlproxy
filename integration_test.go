@@ -1,6 +1,6 @@
 // +build all integration
 
-package gocql
+package gocqlproxy
 
 // This file groups integration tests where Cassandra has to be set up with some special integration variables
 import (

@@ -1,6 +1,6 @@
 // +build all cassandra
 
-package gocql
+package gocqlproxy
 
 import (
 	"bytes"

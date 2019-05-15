@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gocql
+package gocqlproxy
 
 import (
 	"bufio"
@@ -19,8 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gocql/gocql/internal/lru"
-	"github.com/gocql/gocql/internal/streams"
+	"github.com/operasoftware/gocqlproxy/internal/lru"
+	"github.com/operasoftware/gocqlproxy/internal/streams"
 )
 
 var (

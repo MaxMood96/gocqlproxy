@@ -1,6 +1,6 @@
 // +build all unit
 
-package gocql
+package gocqlproxy
 
 import (
 	"bytes"
