@@ -3,6 +3,7 @@ package gocqlproxy
 import (
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"sync/atomic"
 )
@@ -146,6 +147,10 @@ func (p *scyllaConnPicker) Size() (int, int) {
 func (p *scyllaConnPicker) Pick(t token) *Conn {
 	if len(p.conns) == 0 {
 		return nil
+	}
+
+	if os.Getenv("GOCQLPROXY_DISABLE_SHARDING") == "1" {
+		return p.randomConn()
 	}
 
 	if t == nil {

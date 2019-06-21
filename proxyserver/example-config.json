@@ -1,0 +1,9 @@
+{
+  "keyspace": "sync",
+  "listen_host": "localhost:9043",
+  "scylla_nodes": [
+    "127.0.0.1:9042",
+    "127.0.0.2:9042"
+  ],
+  "local_datacenter": "datacenter1"
+}

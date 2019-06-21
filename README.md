@@ -1,3 +1,20 @@
+gocqlproxy
+==========
+
+To build the proxy server, run:
+```
+go build -o gocqlproxy proxyserver/main.go
+```
+
+It can be started with json config filename argument:
+```
+./gocqlproxy config.json
+```
+
+An example config file is available in [`proxyserver/example-config.json`](./proxyserver/example-config.json).
+
+To run benchmarks comparing shard-aware performance with shard-unaware, `GOCQLPROXY_DISABLE_SHARDING=1` environment variable can be set to run the proxy without shard-awareness.
+
 gocql
 =====
 

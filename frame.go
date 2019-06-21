@@ -95,6 +95,7 @@ const (
 	opAuthChallenge frameOp = 0x0E
 	opAuthResponse  frameOp = 0x0F
 	opAuthSuccess   frameOp = 0x10
+	opProxyQuery    frameOp = 0xF0
 )
 
 func (f frameOp) String() string {
