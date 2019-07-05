@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -85,24 +84,42 @@ type query struct {
 	session      *Session
 }
 
-func (query *query) processProxyQuery(messageBytes []byte) (*framer, error) {
-	// find the appropriate host to forward the frame to:
-	partitionKey := query.clientFramer.readBytes()
-	serverConn, err := query.session.pickHost(partitionKey)
-	if err != nil {
-		// TODO: we probably should return an error to the client here
-		return nil, err
-	}
+type proxyResponse struct {
+	op        frameOp
+	flags     byte
+	frameData []byte
+}
 
+func makeResponse(framer *framer) *proxyResponse {
+	return &proxyResponse{
+		 op:        framer.header.op,
+		 flags:     framer.header.flags,
+		 frameData: framer.rbuf,
+	}
+}
+
+func makeErrorResponse(template string, values ...interface{}) *proxyResponse {
+	framer := newFramer(nil, nil, nil, 0)
+	framer.writeInt(errServer)
+	framer.writeString(fmt.Sprintf(template, values...))
+	return &proxyResponse{
+		 op:        errServer,
+		 frameData: framer.wbuf,
+	}
+}
+
+
+func (query *query) processProxyQuery(messageBytes []byte) *proxyResponse {
 	// parse the inner frame:
 	nestedReader := bytes.NewReader(messageBytes)
 	nestedHead, err := readHeader(nestedReader, query.conn.headerBuf[:])
 	if err != nil {
-		Logger.Println("reading nested frame header failed:", err)
-		return nil, nil
+		return makeErrorResponse("reading nested frame header error: %s", err)
 	}
-	if nestedHead.op != opQuery {
-		return nil, errors.New("unknown nested frame type")
+	nestedOp := nestedHead.op
+	if nestedOp != opQuery && nestedOp != opPrepare && nestedOp != opBatch {
+		errorMessage := fmt.Sprintf("unsupported nested frame type: %s", nestedOp)
+		return makeErrorResponse(errorMessage)
 	}
 
 	nestedFramer := newFramer(nestedReader, nil, &SnappyCompressor{}, 4)
@@ -110,8 +127,7 @@ func (query *query) processProxyQuery(messageBytes []byte) (*framer, error) {
 		// If nested frame is incorrect, there's still chance that next frame
 		// will be fine, because the 'parent frame' was parsed correctly
 		// - so we fail silently here.
-		Logger.Println("reading nested frame failed:", err)
-		return nil, nil
+		return makeErrorResponse("reading nested frame failed: %s", err)
 	}
 
 	// send the inner frame to the Scylla host
@@ -119,15 +135,40 @@ func (query *query) processProxyQuery(messageBytes []byte) (*framer, error) {
 		head:      nestedHead,
 		frameData: nestedFramer.rbuf,
 	}
+	if nestedOp == opPrepare {
+		var responseFramer *framer
+		nextIter := query.session.policy.Pick(nil)
+		host := nextIter()
+		// send opPrepare messages to all the hosts
+		for host != nil {
+			hostInfo := host.Info()
+			serverIP := hostInfo.ConnectAddress()
+			pool, ok := query.session.pool.getPool(hostInfo)
+			if !ok {
+				return makeErrorResponse(
+					"cannot find connection for %s", serverIP)
+			}
+			conn := pool.Pick(nil)
+			responseFramer, err = conn.exec(context.TODO(), frameWriter, nil)
+			if err != nil {
+				return makeErrorResponse("prepare error: %s", err)
+			}
+			host = nextIter()
+		}
+		return makeResponse(responseFramer)
+	}
+	// find the appropriate host to forward the frame to:
+	partitionKey := query.clientFramer.readBytes()
+	serverConn, err := query.session.pickHost(partitionKey)
+	if err != nil {
+		return makeErrorResponse("pickHost error: %s", err)
+	}
 	responseFramer, err := serverConn.exec(context.TODO(), frameWriter, nil)
 	if err != nil {
-		// recoverable, because the 'parent frame' was parsed
-		Logger.Println("exec failed", err)
-		// TODO: we probably should return an error here
-		return nil, nil
+		return makeErrorResponse("exec failed: %s", err)
 	}
 
-	return responseFramer, nil
+	return makeResponse(responseFramer)
 }
 
 func (query *query) process() error {
@@ -141,34 +182,20 @@ func (query *query) process() error {
 		return err
 	}
 
-	// create the response for the current frame:
-	responseFramer, err := query.processProxyQuery(nestedBytes)
-	if err != nil {
-		return err
-	}
+	// pass the inner data to Scylla server:
+	response := query.processProxyQuery(nestedBytes)
 
-	if responseFramer == nil {
-		// TODO: we probably should return an error to the client instead of ignoring
-		// the recoverable errors
-		return nil
-	}
-
-	// write the response:
+	// return the response back to client:
 	clientFramer.writeHeader(
-		responseFramer.header.flags,
-		responseFramer.header.op,
+		response.flags,
+		response.op,
 		outerHeader.stream,
 	)
 	clientFramer.wbuf = append(
 		clientFramer.wbuf,
-		responseFramer.rbuf...
+		response.frameData...
 	)
-	err = clientFramer.finishWrite()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return clientFramer.finishWrite()
 }
 
 // HandleConn is the implementation of connection processing in gocqlproxy,
@@ -191,16 +218,16 @@ func (s *Session) HandleConn(clientConn net.Conn) {
 		if err := framer.readFrame(framer.header); err != nil {
 			// Likely unrecoverable, because the failure can occur between
 			// frame boundaries.
-			Logger.Println(err)
+			Logger.Println("reading frame data failed:", err)
 			break
 		}
 		if head.stream < 0 {
 			// we don't use negative stream numbers
-			Logger.Println("unexpected negative stream id")
+			Logger.Println("unexpected negative stream id:", head.stream)
 			continue
 		}
 		if head.op != opProxyQuery {
-			Logger.Println("unknown frame type:", head.op)
+			Logger.Println("unsupported frame type:", head.op)
 			continue
 		}
 		query := &query{
