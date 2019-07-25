@@ -100,10 +100,35 @@ func main() {
 	check(err)
 
 	proxy.Logger.Println("gocqlproxy: listening on", config.ListenHost)
+	maxConnections := 200
+	semaphore := make(chan bool, maxConnections)
 	for {
+		var conn net.Conn
+		select {
+		case semaphore <- true:
+			listenConnection.(*net.TCPListener).SetDeadline(time.Time{})
+			conn, err = listenConnection.Accept()
+		case <-time.After(time.Second * 1):
+			// clean the queue if unable to accept after 1 second
+			// (accept&drop all connections until there are no new ones for 100ms,
+			//  or some other connection closes)
+			for len(semaphore) == maxConnections {
+				listenConnection.(*net.TCPListener).SetDeadline(time.Now().Add(time.Millisecond * 100))
+				conn, err := listenConnection.Accept()
+				if err != nil {
+					proxy.Logger.Println("gocqlproxy accept failed:", err)
+					break
+				}
+				conn.Close()
+			}
+			continue
+		}
 		conn, err := listenConnection.Accept()
 		proxy.Logger.Println("gocqlproxy: new connection from " + conn.RemoteAddr().String())
 		check(err)
-		go session.HandleConn(conn)
+		go func() {
+			defer func() { <-semaphore }()
+			go session.HandleConn(conn)
+		}()
 	}
 }
