@@ -15,6 +15,8 @@ An example config file is available in [`proxyserver/example-config.json`](./pro
 
 To run benchmarks comparing shard-aware performance with shard-unaware, `GOCQLPROXY_DISABLE_SHARDING=1` environment variable can be set to run the proxy without shard-awareness.
 
+To connect to the proxy, [Opera's Python Driver fork (gocqlproxy-python-driver)](https://github.com/operasoftware/gocqlproxy-python-driver) can be used.
+
 gocql
 =====
 
